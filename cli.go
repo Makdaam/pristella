@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-    "os"
-    "log"
-    "runtime/pprof"
+	"log"
+	"os"
+	"runtime/pprof"
 )
 
 var dev_number int
@@ -30,39 +30,39 @@ func init() {
 
 func main() {
 	fmt.Println("Pristella Tetra - a lightweight TELive radio frontent")
-    if cpu_profile != "" {
-        f, err := os.Create(cpu_profile)
-        if err != nil {
-            log.Fatal(err)
-        }
-        pprof.StartCPUProfile(f)
-        defer pprof.StopCPUProfile()
-    }
-    fmt.Println(" - opening output")
-    output_file, err := os.OpenFile(output_filename,os.O_WRONLY, 0200)
-    if err!=nil {
-        log.Fatal("Can't open output file: ",err)
-    }
-    defer output_file.Close()
+	if cpu_profile != "" {
+		f, err := os.Create(cpu_profile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+	fmt.Println(" - opening output")
+	output_file, err := os.OpenFile(output_filename, os.O_WRONLY, 0200)
+	if err != nil {
+		log.Fatal("Can't open output file: ", err)
+	}
+	defer output_file.Close()
 
-    output_chan := make(chan []complex64)
-    input_chan := make(chan []complex64)
+	output_chan := make(chan []complex64)
+	input_chan := make(chan []complex64)
 
-    go fileOutput(output_file, output_chan)
+	go fileOutput(output_file, output_chan)
 
-    fmt.Println(" - preparing filters")
-    go dsp(input_chan,output_chan)
-    
-    fmt.Println(" - opening input")
+	fmt.Println(" - preparing filters")
+	go dsp(input_chan, output_chan)
+
+	fmt.Println(" - opening input")
 	if input_filename != "" {
 		fmt.Println("WARNING! DEBUG MODE")
-        input_file, err := os.Open(input_filename)
-        if err!=nil {
-            log.Fatal("Can't open input file: ",err)
-        }
-        defer input_file.Close()
-        fileInput(input_file, input_chan)
-        
+		input_file, err := os.Open(input_filename)
+		if err != nil {
+			log.Fatal("Can't open input file: ", err)
+		}
+		defer input_file.Close()
+		fileInput(input_file, input_chan)
+
 	} else {
 		fmt.Println("Opening RTL-SDR")
 		//run a device input

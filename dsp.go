@@ -1,14 +1,12 @@
 package main
 
 import (
-    "fmt"
-    "math"
-    "log"
+	"fmt"
+	"log"
+	"math"
 )
 
-
 //FIR coefficients for different filters
-
 
 // sin coefficients
 var _sin = [...]float32{
@@ -29,7 +27,6 @@ var _cos = [...]float32{
 	-1.38888888888730564116E-3,  // 0xbf56c16c16c14f91
 	4.16666666666665929218E-2,   // 0x3fa555555555554b
 }
-
 
 //this one is ripped from math.Sincos, but is faster by about 15%
 func sincos32(x float32) (sin, cos float32) {
@@ -84,37 +81,35 @@ func sincos32(x float32) (sin, cos float32) {
 	return
 }
 
-
-func freqShift (in []complex64, frame *int) []complex64 {
-    out := make([]complex64, len(in))
-    exp:=float32(2*math.Pi)*float32(-offset_freq)/float32(sample_rate)
-    for key, value := range in {
-        floatframe := float32(*frame+key)
-        sin, cos := sincos32(exp*floatframe)
-        out[key] = value*complex64(complex(cos,sin))
-    }
-    return out
+func freqShift(in []complex64, frame *int) []complex64 {
+	out := make([]complex64, len(in))
+	exp := float32(2*math.Pi) * float32(-offset_freq) / float32(sample_rate)
+	for key, value := range in {
+		floatframe := float32(*frame + key)
+		sin, cos := sincos32(exp * floatframe)
+		out[key] = value * complex64(complex(cos, sin))
+	}
+	return out
 }
 
+func dsp(in chan []complex64, out chan []complex64) {
+	var current_coeffs []float32
+	//    var current_fir_state []complex64;
+	var sample_rate_ok bool
 
-
-func dsp (in chan []complex64, out chan []complex64) {
-    var current_coeffs []float32;
-    var current_fir_state []complex64;
-    var sample_rate_ok bool
-
-    init_coeffs()
-    current_coeffs, sample_rate_ok = fir_coeffs[sample_rate]
-    if !sample_rate_ok {
-        log.Fatal("Missing FIR coefficients for this sample_rate, see fir_coeffs.go for details")
-    }
-    current_fir_state = make([]complex64, len(current_coeffs))
-    fmt.Println(current_coeffs[0])
-    fmt.Println("FILTER")
-    t := 0
-    f := 0
-    for {
-        buf1 := <- in
-        out <- firFilterC(freqShift(buf1, &t), &f, current_coeffs, current_fir_state)
-    }
+	init_coeffs()
+	current_coeffs, sample_rate_ok = fir_coeffs[sample_rate]
+	if !sample_rate_ok {
+		log.Fatal("Missing FIR coefficients for this sample_rate, see fir_coeffs.go for details")
+	}
+	//    current_fir_state = make([]complex64, len(current_coeffs))
+	fmt.Println(current_coeffs[0])
+	fmt.Println("FILTER")
+	t := 0
+	//    f := 0
+	for {
+		buf1 := <-in
+		out <- firFilterC(freqShift(buf1, &t), &f, current_coeffs, current_fir_state)
+		out <- freqShift(buf1, &t)
+	}
 }
