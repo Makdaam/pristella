@@ -94,7 +94,7 @@ func freqShift(in []complex64, frame *int) []complex64 {
 
 func dsp(in chan []complex64, out chan []complex64) {
 	var current_coeffs []float32
-	//    var current_fir_state []complex64;
+	var current_fir_state []complex64;
 	var sample_rate_ok bool
 
 	init_coeffs()
@@ -102,14 +102,16 @@ func dsp(in chan []complex64, out chan []complex64) {
 	if !sample_rate_ok {
 		log.Fatal("Missing FIR coefficients for this sample_rate, see fir_coeffs.go for details")
 	}
-	//    current_fir_state = make([]complex64, len(current_coeffs))
+	current_fir_state = make([]complex64, len(current_coeffs))
 	fmt.Println(current_coeffs[0])
+    initFilterV(current_coeffs)
 	fmt.Println("FILTER")
 	t := 0
-	//    f := 0
+    f := 0
 	for {
 		buf1 := <-in
+        //select the filtering function (from filter.go) over here
 		out <- firFilterC(freqShift(buf1, &t), &f, current_coeffs, current_fir_state)
-		out <- freqShift(buf1, &t)
+		//out <- freqShift(buf1, &t)
 	}
 }
