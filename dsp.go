@@ -111,7 +111,7 @@ func dsp(in chan []complex64, out chan []complex64) {
 	for {
 		buf1 := <-in
         //select the filtering function (from filter.go) over here
-		out <- firFilterC(freqShift(buf1, &t), &f, current_coeffs, current_fir_state)
+		out <- firFilterV(freqShift(buf1, &t), &f, current_coeffs, current_fir_state)
 		//out <- freqShift(buf1, &t)
 	}
 }

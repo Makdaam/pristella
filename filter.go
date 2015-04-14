@@ -8,11 +8,11 @@ package main
 //
 //
 //void volk_dot(float complex * res, float complex * state, float_t * coeffs, uint32_t lc) {
-//  volk_32fc_32f_dot_prod_32fc_a_generic((lv_32fc_t* )res,(lv_32fc_t* )state,(float *)coeffs,(unsigned int)lc);
+//  volk_32fc_32f_dot_prod_32fc_a_sse((lv_32fc_t* )res,(lv_32fc_t* )state,(float *)coeffs,(unsigned int)lc);
 //}
 import "C"
 import "log"
-
+import "fmt"
 
 var vcoeffs map[uint32][]float32
 
@@ -33,13 +33,14 @@ func firFilterC(in []complex64, fir_frame *int, coeffs []float32, state []comple
 
 //init function for memory aligned coefficients slices
 func initFilterV(coeffs []float32) {
+    fmt.Println("INIT")
     lc:=uint32(len(coeffs))
     vcoeffs = make(map[uint32][]float32)
     for j:=uint32(0); j<4; j++ {
         vcoeffs[j] = make([]float32,2*lc)
         for i:=uint32(0); i<lc; i++ {
-            vcoeffs[j][(lc-j+i)%lc] = coeffs[i]
-            vcoeffs[j][lc+((lc-j+i)%lc)] = coeffs[i]
+            vcoeffs[j][(j+i)%lc] = coeffs[i]
+            vcoeffs[j][lc+((j+i)%lc)] = coeffs[i]
         }
     }
 }
@@ -51,30 +52,49 @@ func firFilterV(in []complex64, fir_frame *int, coeffs []float32, state []comple
 	out := make([]complex64, len(in))
 	var lc uint32
 	lc = uint32(len(coeffs))
-    if lc % 4 != 0 {
-        log.Fatal("FIR tap count has to be divisible by 4")
+    if lc % aligner != 0 {
+        log.Fatal("FIR tap count has to be divisible by",aligner) //ok
     }
-    if len(in) % 4 != 0 {
-        log.Fatal("Sample buffer not divisible by 4")
+    if len(in) % int(aligner) != 0 { //ok
+        log.Fatal("Sample buffer not divisible by",aligner) //ok
     }
     //number of samples should be divisible by 4
 	var local_frame uint32
 	local_frame = uint32(*fir_frame)
 	var sum complex64
-    long_loop := uint32(len(in))/aligner    
+    //fmt.Println("LIN",len(in))
+    long_loop := uint32(len(in))/aligner
+    //fmt.Println("LL", long_loop)
 	for i := uint32(0); i < long_loop; i++ {
         for j:= uint32(0); j<aligner; j++ {
 		    //place value in state
 		    state[local_frame+j] = in[(i*aligner)+j]
 		    //calculate output
-            C.volk_dot((*C.complexfloat)(&sum), (*C.complexfloat)(&state[0]),(*C.float_t)(&vcoeffs[j][local_frame]), (C.uint32_t)(lc))
+            C.volk_dot((*C.complexfloat)(&sum), (*C.complexfloat)(&state[0]),(*C.float_t)(&vcoeffs[j][lc-local_frame]), (C.uint32_t)(lc))
+            //this commented out line does exactly the same thing as the C function, but much slower
+            //sum = go_dot(state,vcoeffs[j][local_frame:lc+local_frame], lc)
+
+            //trivial rewrite
+            
 		    out[(i*aligner)+j] = sum
 		    //shift fir_frame
         }
 	    local_frame = (local_frame + aligner) % (lc - aligner)
+        //fmt.Println("LF", local_frame)
 	}
 	*fir_frame = int(local_frame)
 	return out
+}
+
+func go_dot (state []complex64, coeffs []float32, lc uint32) complex64 {
+    var result complex64
+    result = 0
+    for i := uint32(0); i<lc; i++ {
+        re := real(state[i])*coeffs[i]
+        im := imag(state[i])*coeffs[i]
+        result += complex(re,im)
+    }
+    return result
 }
 
 //FIR filter, trivial but slow implementation
@@ -92,8 +112,7 @@ func firFilter(in []complex64, fir_frame *int, coeffs []float32, state []complex
 		sum = 0
 		var j uint32
 		for j = 0; j < lc; j++ {
-			index1 := j + local_frame
-			index2 := (index1) % lc
+			index2 := (j + local_frame) % lc
 			//            sum += coeffs[j]*state[index2]
 			re := real(state[index2]) * coeffs[j]
 			im := imag(state[index2]) * coeffs[j]
