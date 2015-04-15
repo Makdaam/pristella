@@ -145,6 +145,11 @@ func dsp(in chan []complex64, out chan []complex64) {
 		buf1 := <-in
 		//select the filtering function (from filter.go) over here
 		out <- decimate(firFilterV(freqShift(buf1, &t), &f, current_coeffs, current_fir_state))
+        //out <- firFilterV(freqShift(buf1, &t), &f, current_coeffs, current_fir_state)
+        if t < -1000 && f < -1000 {
+            fmt.Println("Unexpected", len(current_fir_state))
+        }
+        //out <- buf1
 		//out <- freqShift(buf1, &t)
 	}
 }
