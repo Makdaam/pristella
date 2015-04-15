@@ -81,6 +81,38 @@ func sincos32(x float32) (sin, cos float32) {
 	return
 }
 
+var low_divider uint32
+var high_divider uint32
+var average float64
+var target_average float64
+var decim_counter uint32
+var step uint32
+
+func init_decimate(in_sample_rate uint32, out_sample_rate uint32) {
+	target_average = float64(in_sample_rate) / float64(out_sample_rate)
+	low_divider = uint32(math.Floor(target_average))
+	high_divider = uint32(math.Ceil(target_average))
+	average = target_average
+	step = high_divider
+}
+
+func decimate(in []complex64) []complex64 {
+	out := make([]complex64, (len(in) / int(math.Floor(target_average))))
+	j := uint32(0)
+	for i := uint32(0); i < uint32(len(in)); i += step {
+//        fmt.Println("ST",step, average, target_average)
+		out[j] = in[i]
+		j += 1
+		average = 0.99*average + 0.01*float64(step)
+		if average > target_average {
+			step = low_divider
+		} else {
+			step = high_divider
+		}
+	}
+	return out[0:j]
+}
+
 func freqShift(in []complex64, frame *int) []complex64 {
 	out := make([]complex64, len(in))
 	exp := float32(2*math.Pi) * float32(-offset_freq) / float32(sample_rate)
@@ -105,13 +137,14 @@ func dsp(in chan []complex64, out chan []complex64) {
 	current_fir_state = make([]complex64, len(current_coeffs))
 	fmt.Println(current_coeffs[0])
 	initFilterV(current_coeffs)
+	init_decimate(uint32(sample_rate), 36000)
 	fmt.Println("FILTER")
 	t := 0
 	f := 0
 	for {
 		buf1 := <-in
 		//select the filtering function (from filter.go) over here
-		out <- firFilterV(freqShift(buf1, &t), &f, current_coeffs, current_fir_state)
+		out <- decimate(firFilterV(freqShift(buf1, &t), &f, current_coeffs, current_fir_state))
 		//out <- freqShift(buf1, &t)
 	}
 }
