@@ -12,7 +12,7 @@ import (
 	"log"
 	"time"
     "fmt"
-    "unsafe"
+    "github.com/Makdaam/pristella/rtl_input"
 )
 
 func fileInput(input_file io.Reader, c chan []complex64) {
@@ -32,26 +32,30 @@ func fileInput(input_file io.Reader, c chan []complex64) {
 }
 
 func rtlsdrInput(dev_id int, c_freq int, s_rate int, c chan []complex64) {
-    //check if there's a device by this id
-    var dev_count uint32
-    dev_count = uint32(C.rtlsdr_get_device_count())
-    if dev_id <0 || dev_id >= int(dev_count) {
-        log.Fatal("Wrong device id, please input a number from 0 to",dev_count - 1)
+    names := rtl_input.Get_device_names()
+    var dev rtl_input.Rtlsdr_device
+    fmt.Println(">>>>>>>>>>>>>>>>")
+    for i,j := range names {
+        fmt.Println(i,j)
     }
-    fmt.Println("Opening device",dev_id,string(*C.rtlsdr_get_device_name(C.uint32_t(dev_id))))
-    ret := C.rtlsdr_open(&C.local_rtl_device, C.uint32_t(dev_id))
-    if ret < 0 {
-        log.Fatal("rtlsdr_open returned",ret)
+    fmt.Println(">>>>>>>>>>>>>>>>")
+    //make sure id is positive
+    if dev_id <0 {
+        log.Panic("Device id has to be >= 0")
     }
-    defer C.rtlsdr_close(C.local_rtl_device)
+    log.Println("Opening device",dev_id)
+    
+    
+    dev = rtl_input.Open_rtlsdr(uint32(dev_id))
+    defer dev.Close()
+
+
     //setting center freq
     if c_freq < 0 {
         log.Fatal("Negative freqs not supported")
     }
-    ret = C.rtlsdr_set_center_freq(C.local_rtl_device,C.uint32_t(c_freq))
-    if ret < 0 {
-        log.Fatal("rtlsdr_set_center_freq returned",ret)
-    }
+    dev.SetCenterFreq(uint32(c_freq))
+/*
     //setting sample rate
     if s_rate <=0 {
         log.Fatal("Negative or 0 sample rates not supported")
@@ -90,4 +94,5 @@ func rtlsdrInput(dev_id int, c_freq int, s_rate int, c chan []complex64) {
         }
         c <- buffer_cpx[:read/2]
     }
+*/
 }
