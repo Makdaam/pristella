@@ -54,7 +54,7 @@ int32_t rtlinput_get_direct_sampling(void * dev_ptr);
 
 
 /* streaming functions */
-int32_t rtlinput_reset_buffer(void * dev_ptr); //
-int32_t rtlinput_read_sync(void * dev_ptr, void *buf, int len, int *n_read); //
+int32_t rtlinput_reset_buffer(void * dev_ptr);
+int32_t rtlinput_read_sync(void * dev_ptr, void *buf, int32_t len, int32_t *n_read);
 
 #endif
