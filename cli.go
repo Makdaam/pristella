@@ -65,6 +65,6 @@ func main() {
 
 	} else {
 		fmt.Println("Opening RTL-SDR")
-		rtlsdrInput(dev_number,center_freq*1000,sample_rate, input_chan)
+		rtlsdrInput(dev_number, center_freq*1000, sample_rate, input_chan)
 	}
 }

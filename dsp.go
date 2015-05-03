@@ -100,7 +100,7 @@ func decimate(in []complex64) []complex64 {
 	out := make([]complex64, (len(in) / int(math.Floor(target_average))))
 	j := uint32(0)
 	for i := uint32(0); i < uint32(len(in)); i += step {
-//        fmt.Println("ST",step, average, target_average)
+		//        fmt.Println("ST",step, average, target_average)
 		out[j] = in[i]
 		j += 1
 		average = 0.99*average + 0.01*float64(step)
@@ -145,11 +145,11 @@ func dsp(in chan []complex64, out chan []complex64) {
 		buf1 := <-in
 		//select the filtering function (from filter.go) over here
 		out <- decimate(firFilterV(freqShift(buf1, &t), &f, current_coeffs, current_fir_state))
-        //out <- firFilterV(freqShift(buf1, &t), &f, current_coeffs, current_fir_state)
-        if t < -1000 && f < -1000 {
-            fmt.Println("Unexpected", len(current_fir_state))
-        }
-        //out <- buf1
+		//out <- firFilterV(freqShift(buf1, &t), &f, current_coeffs, current_fir_state)
+		if t < -1000 && f < -1000 {
+			fmt.Println("Unexpected", len(current_fir_state))
+		}
+		//out <- buf1
 		//out <- freqShift(buf1, &t)
 	}
 }

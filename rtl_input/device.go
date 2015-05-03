@@ -4,84 +4,116 @@ package rtl_input
 //#include "rtl-input.h"
 import "C"
 import (
-    "unsafe"
-    "log"
+	"log"
+	"unsafe"
 )
 
-type Rtlsdr_device struct {
-    dev_id uint32
-    dev_ptr unsafe.Pointer
+type RtlsdrDevice struct {
+	devId  uint32
+	devPtr unsafe.Pointer
 }
 
-var open_devices []Rtlsdr_device
+const (
+	RTLSDR_TUNER_UNKNOWN = iota
+	RTLSDR_TUNER_E4000
+	RTLSDR_TUNER_FC0012
+	RTLSDR_TUNER_FC0013
+	RTLSDR_TUNER_FC2580
+	RTLSDR_TUNER_R820T
+	RTLSDR_TUNER_R828D
+)
 
-func Get_device_names() []string {
-    var device_names []string
-    single_name := make([]uint8,100,100)
-    var name_length uint32
+var openDevices []RtlsdrDevice
 
-    dev_count := uint32(C.rtlinput_get_device_count())
+func GetRtlsdrNames() []string {
+	var deviceNames []string
+	singleName := make([]uint8, 100, 100)
+	var nameLength uint32
 
-    for i:=uint32(0); i<dev_count; i++ {
-        C.rtlinput_get_name(C.uint32_t(i), (*C.uint32_t)(&name_length), (*C.uint8_t)(&single_name[0]))
-        if name_length < 100 {
-            var name string
-            for _, k:= range single_name {
-                if k==0 {
-                    break
-                }
-                name+=string(k)
-            }
-            device_names = append(device_names, name)
-        } else {
-            log.Panic("Device name too long:", i, name_length)
+	devCount := uint32(C.rtlinput_get_device_count())
+
+	for i := uint32(0); i < devCount; i++ {
+		C.rtlinput_get_name(C.uint32_t(i), (*C.uint32_t)(&nameLength), (*C.uint8_t)(&singleName[0]))
+		if nameLength < 100 {
+			var name string
+			for _, k := range singleName {
+				if k == 0 {
+					break
+				}
+				name += string(k)
+			}
+			deviceNames = append(deviceNames, name)
+		} else {
+			log.Panic("Device name too long:", i, nameLength)
+		}
+	}
+	return deviceNames
+}
+
+func GetRtlsdrIdFromSerial(serial []uint8) int32 {
+    zeroTerminated := false
+    for _,i := range serial {
+        if i == 0 {
+            zeroTerminated = true
+            break
         }
     }
-    return device_names
+    if zeroTerminated {
+        return int32(C.rtlinput_get_index_from_serial((*C.uint8_t) (&serial[0])))
+    } else {
+        log.Panic("GetIdBySerial failed, serial not a zero terminated C string")
+    }
+    return -1
 }
 
-func Open_rtlsdr(dev_id uint32) Rtlsdr_device {
-    var dev Rtlsdr_device
-    dev.dev_id = dev_id 
-   
-    dev_count := uint32(C.rtlsdr_get_device_count())
-    if dev_count == 0 {
-        log.Panic("No devices connected")
-    }
-    if dev_id >= uint32(dev_count) {
-        log.Panic("Wrong device id, please input a number from 0 to",dev_count - 1)
-    }
-    for _,item := range open_devices {
-        if item.dev_id == dev_id {
-            log.Println("Device",dev_id,"already open")
-            panic("Device already open")
-        }
-    }
-    retval := int32(C.rtlinput_open(&dev.dev_ptr, (C.uint32_t)(dev_id)))
-    if retval <0 {
-        log.Println("Error while opening: rtlsdr_open:", retval)
-    }
-    open_devices = append(open_devices, dev)
-    return dev
+func OpenRtlsdr(devId uint32) RtlsdrDevice {
+	var dev RtlsdrDevice
+	dev.devId = devId
+
+	devCount := uint32(C.rtlsdr_get_device_count())
+	if devCount == 0 {
+		log.Panic("No devices connected")
+	}
+	if devId >= uint32(devCount) {
+		log.Panic("Wrong device id, please input a number from 0 to", devCount-1)
+	}
+	for _, item := range openDevices {
+        //TODO this needs to be changed to check serials, ids can change
+		if item.devId == devId {
+			log.Println("Device", devId, "already open")
+			panic("Device already open")
+		}
+	}
+	retval := int32(C.rtlinput_open(&dev.devPtr, (C.uint32_t)(devId)))
+	if retval < 0 {
+		log.Println("Error while opening: rtlsdrOpen:", retval)
+	}
+	openDevices = append(openDevices, dev)
+	return dev
 }
 
-func (dev *Rtlsdr_device) Close() {
-    retval := int32(C.rtlinput_close(dev.dev_ptr))
-    if retval < 0 {
-        log.Panic("Closing of device ",dev.dev_id,"returned ",retval)
-    }
+func (dev *RtlsdrDevice) Close() {
+	retval := int32(C.rtlinput_close(dev.devPtr))
+	if retval < 0 {
+		log.Panic("Closing of device ", dev.devId, "returned ", retval)
+	}
 }
 
-func (dev *Rtlsdr_device) SetCenterFreq(freq uint32) {
-    retval := int32(C.rtlinput_set_center_freq(dev.dev_ptr, (C.uint32_t)(freq)))
-    if retval < 0 {
-        log.Panic("Set center freq of device ",dev.dev_id,"returned ",retval)
-    }
+func (dev *RtlsdrDevice) GetTunerType() int32 {
+	retval := int32(C.rtlinput_get_tuner_type(dev.devPtr))
+	if retval == 0 {
+		log.Panic("Get tuner type of device ", dev.devId, "returned ", retval)
+	}
+	return retval
 }
 
-func (dev *Rtlsdr_device) SetSampleRate(s_rate uint32) {
-    retval := int32(C.rtlinput_set_sample_rate(dev.dev_ptr, (C.uint32_t)(s_rate)))
-    if retval < 0 {
-        log.Panic("Set sample rate of device ",dev.dev_id,"returned ",retval)
-    }
+func (dev *RtlsdrDevice) GetSerial() []uint8 {
+	byteBuffer := make([]uint8, 257, 257)
+	C.rtlinput_get_serial(dev.devPtr, (*C.uint8_t)(&byteBuffer[0]))
+	for k, i := range byteBuffer {
+		if i == 0 {
+            return byteBuffer[:k+1]
+		}
+	}
+    return make([]uint8,0,0)
 }
