@@ -82,7 +82,7 @@ func (dev *RtlsdrDevice) SetTunerGain(gain int32) (actualGain int32) {
     if retval == -255 {
         log.Panic("This device supports many more gain values than I expected, please contact the developer with your device model and number of gains =",possibleGainsCount)
     }
-    if retval != 0 {
+    if retval <= 0 {
         log.Panic("Get possible gain values of device ", dev.devId, "returned ", retval)
     }
     possibleGains = possibleGains[:possibleGainsCount]

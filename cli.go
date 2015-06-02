@@ -12,6 +12,7 @@ var dev_number int
 var center_freq int
 var offset_freq int
 var sample_rate int
+var freq_correction int
 var input_filename string
 var output_filename string
 var cpu_profile string
@@ -25,6 +26,7 @@ func init() {
 	flag.IntVar(&center_freq, "f", 429000, "center frequency in kHz")
 	flag.IntVar(&offset_freq, "a", 134000, "offset frequency in Hz")
 	flag.IntVar(&sample_rate, "s", 1000000, "sample rate in samples per second")
+	flag.IntVar(&freq_correction, "x", -118, "frequency correction in ppm")
 	flag.Parse() //call after all flags are defined
 }
 
@@ -46,7 +48,7 @@ func main() {
 	defer output_file.Close()
 
 	output_chan := make(chan []complex64)
-	input_chan := make(chan []complex64)
+	input_chan := make(chan []int32)
 
 	go fileOutput(output_file, output_chan)
 
@@ -65,6 +67,6 @@ func main() {
 
 	} else {
 		fmt.Println("Opening RTL-SDR")
-		rtlsdrInput(dev_number, center_freq*1000, sample_rate, input_chan)
+		rtlsdrInput(dev_number, center_freq*1000, sample_rate, input_chan, freq_correction)
 	}
 }
