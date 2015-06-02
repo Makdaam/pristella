@@ -11,7 +11,7 @@ import (
 //so 32768 (1 << 15) represents 1
 
 const twopi = 205887
-const One = 32768
+const Radix = 32768
 
 var intsin []int32
 var intcos []int32
@@ -57,7 +57,7 @@ type FreqShifter struct {
 func newFreqShifter(freqOffset int, sampleRate int) FreqShifter {
     var out FreqShifter
     fmt.Println("####",freqOffset)
-    out.exp = int32(32768.0 * (2*math.Pi) * float64(-freqOffset) / float64(sampleRate)) % twopi
+    out.exp = int32(Radix * (2*math.Pi) * float64(-freqOffset) / float64(sampleRate)) % twopi
     for out.exp<0 {
         out.exp += twopi
     }
@@ -71,8 +71,8 @@ func (fs *FreqShifter) freqShift(in []int32) []int32 {
 	for i:=int32(0); i < int32(len(in)); i+=2 {
         framepos := fs.frame+(i/2) % twopi
         trigarg := int32((int64(framepos) * int64(fs.exp)) % twopi)
-        out[i] = ((intcos[trigarg] * in[i]) /32768) - ((intsin[trigarg] * in[i+1]) /32768)
-        out[i+1] = ((intcos[trigarg] * in[i+1]) /32768) + ((intsin[trigarg] * in[i]) /32768)
+        out[i] = ((intcos[trigarg] * in[i]) /Radix) - ((intsin[trigarg] * in[i+1]) /Radix)
+        out[i+1] = ((intcos[trigarg] * in[i+1]) /Radix) + ((intsin[trigarg] * in[i]) /Radix)
 	}
     fs.frame = (fs.frame + int32(len(in)/2)) % twopi
 	return out
@@ -81,7 +81,7 @@ func (fs *FreqShifter) freqShift(in []int32) []int32 {
 func toComplex(in []int32) []complex64 {
     out := make([]complex64,len(in)/2,len(in)/2)
     for i := 0; i<len(in); i+=2 {
-        out[i/2] = complex(float32(in[i])/32768.0,float32(in[i+1])/32768.0)
+        out[i/2] = complex(float32(in[i])/Radix,float32(in[i+1])/Radix)
     }
     return out   
 }
@@ -90,8 +90,8 @@ func initSinCos() {
     intsin = make([]int32,twopi,twopi)
     intcos = make([]int32,twopi,twopi)
     for i:= 0; i<twopi; i++ {
-        intsin[i]=int32(math.Sin(float64(i)/32768)*32768)
-        intcos[i]=int32(math.Cos(float64(i)/32768)*32768)
+        intsin[i]=int32(math.Sin(float64(i)/Radix)*Radix)
+        intcos[i]=int32(math.Cos(float64(i)/Radix)*Radix)
     }
 }
 
